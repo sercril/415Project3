@@ -29,7 +29,7 @@ private:
 	gmtl::Matrix44f matrix;
 
 	GLuint vertex_array,
-		color_buffer, index_buffer,
+		vertex_buffer, color_buffer, index_buffer,
 		vertposition_loc, vertcolor_loc;
 };
 
