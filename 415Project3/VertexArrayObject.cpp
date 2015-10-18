@@ -38,18 +38,38 @@ static const GLushort index_buffer_data[] =
 
 VertexArrayObject::VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc)
 {
+
+	float x1 = 0, x2, y1, y2, z1, z2;
+
+	x2 = length;
+
+	y1 = width / 2;
+	y2 = y1 - width;
+
+	z1 = depth / 2;
+	z2 = z1 - depth;
+
 	this->vertposition_loc = vertposition_loc;
 	this->vertcolor_loc = vertcolor_loc;
 
-	this->vertex_buffer = 
+	GLfloat vbuffer_data[] =
 	{
-
+		x1, y1, z1, //0
+		x1, y2, z1, //1
+		x1, y1, z2, //2
+		x1, y2, z2, //3
+		x2, y1, z1, //4
+		x2, y2, z1, //5
+		x2, y1, z2, //6
+		x2, y2, z2 //7
 	};
 
 	
+	this->Create(vbuffer_data);
+	
 }
 
-void VertexArrayObject::Create()
+void VertexArrayObject::Create(GLfloat vertex_buffer_data[24])
 {
 	/*** VERTEX ARRAY OBJECT SETUP***/
 	// Create/Generate the Vertex Array Object
@@ -61,7 +81,7 @@ void VertexArrayObject::Create()
 	glGenBuffers(1, &this->vertex_buffer);
 	// Bind the Vertex Buffer Object.
 	glBindBuffer(GL_ARRAY_BUFFER, this->vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(this->vertex_buffer_data), this->vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
 	// Specify data location and organization
 	glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
 		3, // Size

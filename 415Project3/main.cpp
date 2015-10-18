@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <list>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -19,6 +20,24 @@
 
 using namespace std;
 
+enum ObjectType
+{
+	FLOOR = 0,
+	BALL,
+	PALM,
+	METACARPAL,
+	PROXIMAL,
+	MIDDLE,
+	DISTAL
+};
+
+struct SceneNode
+{	
+	VertexArrayObject vao;
+	ObjectType type;
+	SceneNode* parent;
+	std::list<SceneNode>* children;
+};
 
 #pragma region "Global Variables"
 
@@ -43,6 +62,7 @@ float azimuth, elevation;
 
 gmtl::Matrix44f view;
 
+std::list<SceneNode> sceneGraph;
 
 #pragma endregion
 
@@ -72,6 +92,12 @@ void cameraRotate()
 	gmtl::transpose(view);
 
 	glutPostRedisplay();
+}
+
+
+void buildGraph()
+{
+
 }
 
 #pragma endregion
@@ -174,60 +200,10 @@ void init()
 	vertcolor_loc = glGetAttribLocation(program, "vertexColor");
 	Matrix_loc = glGetUniformLocation(program, "Matrix");
 
-
-	view.set(
-		1, 0, 0, 0,
-		0, 1, 0, 0,
-		0, 0, 1, 0,
-		0, 0, 0, 1);
+	gmtl::identity(view);
 
 
-	for (int i = 0; i < NUM_MATRICES; ++i)
-	{
-		if (i < 5)
-		{
-			type = TIP;
-		}
-		else if (i >= 5 && i < 10)
-		{
-			type = PHALANGE;
-		}
-		else if (i == 10)
-		{
-			type = PALM;
-		}
-		else
-		{
-			type = AXIS;
-		}
-
-		switch (type)
-		{
-
-		case TIP:
-		case PALM:
-		case AXIS:
-			objects[i].set(
-				1, 0, 0, 0,
-				0, 1, 0, 0,
-				0, 0, 1, 0,
-				0, 0, 0, 1);
-			break;
-		case PHALANGE:
-			objects[i].set(
-				1, 0, 0, 0,
-				0, 1, 0, 0,
-				0, 0, 1, 0,
-				0, 0, 0, 1);
-			activeMatrixIndex = i;
-			worldTranslate(0.5f, 0.0f, 0.0f);
-			break;
-		}
-
-		vaoSetup(i, type);
-	}
-
-	activeMatrixIndex = 10;
+	
 }
 
 int main(int argc, char** argv)

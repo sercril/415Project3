@@ -23,18 +23,10 @@ public:
 
 private:
 
-	void Create();
+	void Create(GLfloat vertex_buffer_data[24]);
 
-
-	GLuint vertex_array;
-
-	GLuint vertex_buffer;
-	GLuint color_buffer;
-	GLuint index_buffer;
-
-	GLfloat vertex_buffer_data[8];
-
-	GLuint vertposition_loc, vertcolor_loc;
+	gmtl::Matrix44f matrix;
+	GLuint vertex_array, vertposition_loc, vertcolor_loc;
 };
 
 #endif

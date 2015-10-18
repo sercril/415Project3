@@ -33,6 +33,12 @@
     <None Include="Cube_Vertex_Shader.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="animdata_10fps.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="animdata.bin">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="LoadShaders.h">
@@ -41,5 +47,10 @@
     <ClInclude Include="VertexArrayObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="geometryfileexample.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>
