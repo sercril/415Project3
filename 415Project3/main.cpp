@@ -25,17 +25,54 @@ using namespace std;
 #define SCREEN_WIDTH 1024
 #define SCREEN_HEIGHT 1024
 #define NUM_OBJECTS 18
+#define BOX_INDECIES 20
 
-static const GLfloat color_buffer_data[] = 
+
+// Parameter location for passing a matrix to vertex shader
+GLuint Matrix_loc;
+// Parameter locations for passing data to shaders
+GLuint vertposition_loc, vertcolor_loc;
+
+GLenum errCode;
+const GLubyte *errString;
+
+int mouseX, mouseY,
+mouseDeltaX, mouseDeltaY;
+
+float azimuth, elevation;
+
+gmtl::Matrix44f view;
+
+
+#pragma endregion
+
+
+#pragma region Helper Functions
+
+float arcToDegrees(float arcLength)
 {
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f
+	return ((arcLength * 360.0f) / (2.0f * M_PI));
 }
 
+void cameraRotate()
+{
+	gmtl::Matrix44f elevationRotation, azimuthRotation;
+	
+	elevationRotation = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf((gmtl::Math::deg2Rad(elevation) / SCREEN_HEIGHT)*-1, 0.0f, 0.0f));
+	azimuthRotation = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, (gmtl::Math::deg2Rad(elevation) / SCREEN_HEIGHT)*-1, 0.0f));
+
+	elevationRotation.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	azimuthRotation.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	view = azimuthRotation * elevationRotation;
+
+	view.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	gmtl::transpose(view);
+
+	glutPostRedisplay();
+}
 
 #pragma endregion
 
@@ -57,8 +94,8 @@ void mouseMotion(int x, int y)
 	mouseDeltaY = y - mouseY;
 
 
-	elevation += degreesToRadians(arcToDegrees(mouseDeltaY)) / 1024;
-	azimuth += degreesToRadians(arcToDegrees(mouseDeltaX)) / 1024;
+	elevation += arcToDegrees(mouseDeltaY);
+	azimuth += arcToDegrees(mouseDeltaX);
 
 	cameraRotate();
 
@@ -78,142 +115,6 @@ void keyboard(unsigned char key, int x, int y)
 
 #pragma endregion
 
-
-void vaoSetup(int vertArrayIndex, ObjectType type)
-{
-	/*** VERTEX ARRAY OBJECT SETUP***/
-	// Create/Generate the Vertex Array Object
-	glGenVertexArrays(1, &VertexArrayID[vertArrayIndex]);
-	// Bind the Vertex Array Object
-	glBindVertexArray(VertexArrayID[vertArrayIndex]);
-
-	// Transfer data in to graphics system
-	switch (type)
-	{
-	case TIP:
-		// Create/Generate the Vertex Buffer Object for the vertices.
-		glGenBuffers(1, &tipVertexbuffer);
-		// Bind the Vertex Buffer Object.
-		glBindBuffer(GL_ARRAY_BUFFER, tipVertexbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(tip_vertex_buffer_data), tip_vertex_buffer_data, GL_STATIC_DRAW);
-		// Specify data location and organization
-		glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
-			3, // Size
-			GL_FLOAT, // Type
-			GL_FALSE, // Is normalized
-			0, ((void*)0));
-		// Enable the use of this array
-		glEnableVertexAttribArray(vertposition_loc);
-
-		// Similarly, set up the color buffer.
-		glGenBuffers(1, &tipColorbuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, tipColorbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(tip_color_buffer_data), tip_color_buffer_data, GL_STATIC_DRAW);
-		glVertexAttribPointer(vertcolor_loc, 3, GL_FLOAT, GL_FALSE, 0, ((void*)0));
-		glEnableVertexAttribArray(vertcolor_loc);
-
-		// Set up the element (index) array buffer and copy in data
-		glGenBuffers(1, &tipIndexbuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, tipIndexbuffer);
-		// Transfer data
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(tip_indices_buffer_data),
-			tip_indices_buffer_data, GL_STATIC_DRAW);
-		break;
-	case PHALANGE:
-		// Create/Generate the Vertex Buffer Object for the vertices.
-		glGenBuffers(1, &phalangeVertexbuffer);
-		// Bind the Vertex Buffer Object.
-		glBindBuffer(GL_ARRAY_BUFFER, phalangeVertexbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(phalange_vertex_buffer_data), phalange_vertex_buffer_data, GL_STATIC_DRAW);
-		// Specify data location and organization
-		glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
-			3, // Size
-			GL_FLOAT, // Type
-			GL_FALSE, // Is normalized
-			0, ((void*)0));
-		// Enable the use of this array
-		glEnableVertexAttribArray(vertposition_loc);
-
-		// Similarly, set up the color buffer.
-		glGenBuffers(1, &phalangeColorbuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, phalangeColorbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(phalange_color_buffer_data), phalange_color_buffer_data, GL_STATIC_DRAW);
-		glVertexAttribPointer(vertcolor_loc, 3, GL_FLOAT, GL_FALSE, 0, ((void*)0));
-		glEnableVertexAttribArray(vertcolor_loc);
-
-		// Set up the element (index) array buffer and copy in data
-		glGenBuffers(1, &phalangeIndexbuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, phalangeIndexbuffer);
-		// Transfer data
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(phalange_indices_buffer_data),
-			phalange_indices_buffer_data, GL_STATIC_DRAW);
-		break;
-	case PALM:
-		// Create/Generate the Vertex Buffer Object for the vertices.
-		glGenBuffers(1, &palmVertexbuffer);
-		// Bind the Vertex Buffer Object.
-		glBindBuffer(GL_ARRAY_BUFFER, palmVertexbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(palm_vertex_buffer_data), palm_vertex_buffer_data, GL_STATIC_DRAW);
-		// Specify data location and organization
-		glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
-			3, // Size
-			GL_FLOAT, // Type
-			GL_FALSE, // Is normalized
-			0, ((void*)0));
-		// Enable the use of this array
-		glEnableVertexAttribArray(vertposition_loc);
-
-		// Similarly, set up the color buffer.
-		glGenBuffers(1, &palmColorbuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, palmColorbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(palm_color_buffer_data), palm_color_buffer_data, GL_STATIC_DRAW);
-		glVertexAttribPointer(vertcolor_loc, 3, GL_FLOAT, GL_FALSE, 0, ((void*)0));
-		glEnableVertexAttribArray(vertcolor_loc);
-
-		// Set up the element (index) array buffer and copy in data
-		glGenBuffers(1, &palmIndexbuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, palmIndexbuffer);
-		// Transfer data
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(palm_indices_buffer_data),
-			palm_indices_buffer_data, GL_STATIC_DRAW);
-		break;
-
-	case AXIS:
-		// Create/Generate the Vertex Buffer Object for the vertices.
-		glGenBuffers(1, &axisVertexbuffer);
-		// Bind the Vertex Buffer Object.
-		glBindBuffer(GL_ARRAY_BUFFER, axisVertexbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(axis_vertex_buffer_data), axis_vertex_buffer_data, GL_STATIC_DRAW);
-		// Specify data location and organization
-		glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
-			3, // Size
-			GL_FLOAT, // Type
-			GL_FALSE, // Is normalized
-			0, ((void*)0));
-		// Enable the use of this array
-		glEnableVertexAttribArray(vertposition_loc);
-
-		// Similarly, set up the color buffer.
-		glGenBuffers(1, &axisColorbuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, axisColorbuffer);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(axis_color_buffer_data), axis_color_buffer_data, GL_STATIC_DRAW);
-		glVertexAttribPointer(vertcolor_loc, 3, GL_FLOAT, GL_FALSE, 0, ((void*)0));
-		glEnableVertexAttribArray(vertcolor_loc);
-
-		// Set up the element (index) array buffer and copy in data
-		glGenBuffers(1, &axisIndexbuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, axisIndexbuffer);
-		// Transfer data
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			sizeof(axis_indices_buffer_data),
-			axis_indices_buffer_data, GL_STATIC_DRAW);
-		break;
-	}
-}
-
 void display()
 {
 
@@ -232,7 +133,7 @@ void display()
 		// Draw the transformed cuboid
 		glEnable(GL_PRIMITIVE_RESTART);
 		glPrimitiveRestartIndex(0xFFFF);
-		glDrawElements(GL_TRIANGLE_STRIP, indexCount[PALM], GL_UNSIGNED_SHORT, NULL);
+		glDrawElements(GL_TRIANGLE_STRIP, BOX_INDECIES, GL_UNSIGNED_SHORT, NULL);
 	}
 
 	//Ask GL to execute the commands from the buffer
@@ -250,7 +151,7 @@ void display()
 void init()
 {
 
-	ObjectType type;
+
 
 	elevation = azimuth = 0;
 

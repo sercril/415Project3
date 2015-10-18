@@ -18,16 +18,23 @@ class VertexArrayObject
 
 public:
 
-	VertexArrayObject(std::vector<GLfloat>* vertex_buffer, std::vector<GLfloat>* color_buffer, std::vector<GLfloat>* index_buffer);
+	VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc);
 	~VertexArrayObject();
 
-
-
-
 private:
+
+	void Create();
+
+
+	GLuint vertex_array;
+
 	GLuint vertex_buffer;
 	GLuint color_buffer;
 	GLuint index_buffer;
+
+	GLfloat vertex_buffer_data[8];
+
+	GLuint vertposition_loc, vertcolor_loc;
 };
 
 #endif
