@@ -25,8 +25,12 @@ private:
 
 	void Create(GLfloat vertex_buffer_data[24]);
 
+
 	gmtl::Matrix44f matrix;
-	GLuint vertex_array, vertposition_loc, vertcolor_loc;
+
+	GLuint vertex_array,
+		color_buffer, index_buffer,
+		vertposition_loc, vertcolor_loc;
 };
 
 #endif
