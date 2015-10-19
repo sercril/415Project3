@@ -236,7 +236,15 @@ void buildGraph()
 	
 }
 
-
+void renderGraph(std::vector<SceneNode*> graph)
+{
+	if(!graph.empty())
+	{
+		
+	}
+	
+	return;
+}
 
 #pragma endregion
 
