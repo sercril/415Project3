@@ -36,6 +36,11 @@ static const GLushort index_buffer_data[] =
 	5, 4, 7, 6,
 };
 
+VertexArrayObject::VertexArrayObject()
+{
+
+}
+
 VertexArrayObject::VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc)
 {
 
@@ -67,6 +72,11 @@ VertexArrayObject::VertexArrayObject(float length, float width, float depth, GLu
 	
 	this->Create(vbuffer_data);
 	
+}
+
+VertexArrayObject::~VertexArrayObject()
+{
+
 }
 
 void VertexArrayObject::Create(GLfloat vertex_buffer_data[24])

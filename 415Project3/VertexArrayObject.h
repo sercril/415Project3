@@ -18,6 +18,7 @@ class VertexArrayObject
 
 public:
 
+	VertexArrayObject();
 	VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc);
 	~VertexArrayObject();
 
