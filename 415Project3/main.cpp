@@ -84,7 +84,7 @@ mouseDeltaX, mouseDeltaY;
 
 float azimuth, elevation;
 
-gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform;
+gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera;
 
 
 std::vector<SceneNode*> sceneGraph;
@@ -106,26 +106,37 @@ float arcToDegrees(float arcLength)
 	return ((arcLength * 360.0f) / (2.0f * M_PI));
 }
 
+float degreesToRadians(float deg)
+{
+	return (2.0f * M_PI *(deg / 360.0f));
+}
+
 void cameraRotate()
 {
-	gmtl::Matrix44f elevationRotation, azimuthRotation, viewScale;
+	gmtl::Matrix44f elevationRotation, azimuthRotation;
 	
-	elevationRotation = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf((gmtl::Math::deg2Rad(elevation) / SCREEN_HEIGHT)*-1, 0.0f, 0.0f));
-	azimuthRotation = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, (gmtl::Math::deg2Rad(azimuth) / SCREEN_WIDTH)*-1, 0.0f));
+	elevationRotation.set(
+		1, 0, 0, 0,
+		0, cos(elevation * -1), (sin(elevation * -1) * -1), 0,
+		0, sin(elevation * -1), cos(elevation * -1), 0,
+		0, 0, 0, 1);
+
+	azimuthRotation.set(
+		cos(azimuth * -1), 0, sin(azimuth * -1), 0,
+		0, 1, 0, 0,
+		(sin(azimuth * -1) * -1), 0, cos(azimuth * -1), 0,
+		0, 0, 0, 1);
 
 	elevationRotation.setState(gmtl::Matrix44f::ORTHOGONAL);
 
 	azimuthRotation.setState(gmtl::Matrix44f::ORTHOGONAL);
 
-	/*viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(-2.0f,-2.0f, -2.0f));
+	gmtl::transpose(elevationRotation);
+	gmtl::transpose(azimuthRotation);
+	
+	view = viewScale * elevationRotation * azimuthRotation;
 
-	viewScale.setState(gmtl::Matrix44f::AFFINE);*/
-
-	view = azimuthRotation * elevationRotation;// *viewScale;
-
-	view.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-	gmtl::transpose(view);
+	view.setState(gmtl::Matrix44f::FULL);
 
 	glutPostRedisplay();
 }
@@ -264,7 +275,7 @@ SceneNode * buildFinger(int finger)
 		proximal->parent = sceneGraph[0];
 		proximal->object = SceneObject(hand[base + 1][0], hand[base + 1][1], hand[base + 1][2], vertposition_loc, vertcolor_loc);
 		proximal->id = base;
-		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(0.0f, attachments[finger], 0.0f));
+		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(proximal->parent->object.length, attachments[finger-1], 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
 		proximal->object.matrix = proximal->parent->object.matrix * initialTranslation;
 
@@ -283,7 +294,7 @@ SceneNode * buildFinger(int finger)
 		distal->id = base + 2;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(distal->parent->object.length, 0.0f, 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		distal->object.matrix = distal->parent->object.matrix * initialTranslation;
+		distal->object.matrix =  distal->parent->object.matrix * initialTranslation;
 
 		middle->children.push_back(distal);
 		proximal->children.push_back(middle);
@@ -318,8 +329,6 @@ void buildGraph()
 		palm->children[i] = buildFinger(i);
 	}
 	
-	
-
 	//Ball
 	importBallData();
 	ball->type = BALL;
@@ -331,7 +340,7 @@ void buildGraph()
 	//Floor
 	floor->type = FLOOR;
 	floor->parent = NULL;
-	floor->object = SceneObject(ballRadius * 3, 3.0f, ballRadius, vertposition_loc, vertcolor_loc);
+	floor->object = SceneObject(ballRadius * 10, 3.0f, ballRadius*10, vertposition_loc, vertcolor_loc);
 	floor->children.clear();
 	initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(0.0f, floorY, 0.0f));
 	initialTranslation.setState(gmtl::Matrix44f::TRANS);
@@ -344,9 +353,11 @@ void renderGraph(std::vector<SceneNode*> graph)
 {
 	gmtl::Matrix44f thisTransform, renderTransform, inverseTransform;
 
+	gmtl::identity(thisTransform);
+
 	if(!graph.empty())
 	{
-		for (int i = 0; i < 1; ++i)
+		for (int i = 0; i < graph.size(); ++i)
 		{
 			switch (graph[i]->type)
 			{
@@ -377,7 +388,7 @@ void renderGraph(std::vector<SceneNode*> graph)
 			}
 
 			//Render
-			renderTransform = modelView;
+			renderTransform = view * modelView;
 			glBindVertexArray(graph[i]->object.vertex_array);
 			// Send a different transformation matrix to the shader
 			glUniformMatrix4fv(Matrix_loc, 1, GL_FALSE, &renderTransform[0][0]);
@@ -387,14 +398,16 @@ void renderGraph(std::vector<SceneNode*> graph)
 			glPrimitiveRestartIndex(0xFFFF);
 			glDrawElements(GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
 
-
+			gmtl::invert(inverseTransform, graph[i]->object.matrix * thisTransform);
+			modelView = modelView * inverseTransform;
 			
-			/*if (!graph[i]->children.empty())
+			if (!graph[i]->children.empty())
 			{
 				renderGraph(graph[i]->children);
-				gmtl::invert(inverseTransform, graph[i]->object.matrix * thisTransform);
-				modelView = modelView * inverseTransform;
-			}*/
+				
+			}
+
+			
 			
 		}
 	}
@@ -422,8 +435,8 @@ void mouseMotion(int x, int y)
 	mouseDeltaY = y - mouseY;
 
 
-	elevation += arcToDegrees(mouseDeltaY);
-	azimuth += arcToDegrees(mouseDeltaX);
+	elevation += degreesToRadians(arcToDegrees(mouseDeltaY)) / SCREEN_HEIGHT;
+	azimuth += degreesToRadians(arcToDegrees(mouseDeltaX)) / SCREEN_WIDTH;
 
 	cameraRotate();
 
@@ -496,6 +509,18 @@ void init()
 	gmtl::identity(ballTransform);
 	gmtl::identity(floorTransform);
 	gmtl::identity(palmTransform);
+
+	for (int i = 0; i < 15; ++i)
+	{
+		fingerTransforms[i].push_back(palmTransform);
+	}
+
+	viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(0.02f, 0.02f, 0.02f));
+
+	viewScale.setState(gmtl::Matrix44f::AFFINE);
+	gmtl::invert(viewScale);
+
+	view = view * viewScale;
 
 	buildGraph();
 }

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <array>
+
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -28,9 +30,6 @@ public:
 	GLuint vertex_array;
 
 private:
-
-	void CreateBox(GLfloat vertex_buffer_data[], GLushort index_buffer_data[20]);
-	void CreateSphere(GLfloat* vertex_buffer_data, GLushort* index_buffer_data);
 
 	GLuint vertex_buffer, color_buffer, index_buffer,
 		vertposition_loc, vertcolor_loc;
