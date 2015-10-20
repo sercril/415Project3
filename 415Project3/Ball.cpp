@@ -10,7 +10,7 @@
 
 
 
-#include "VertexArrayObject.h"
+#include "Ball.h"
 
 using namespace std;
 
@@ -36,50 +36,32 @@ static const GLushort index_buffer_data[] =
 	5, 4, 7, 6,
 };
 
-VertexArrayObject::VertexArrayObject()
+Ball::Ball()
 {
 
 }
 
-VertexArrayObject::VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc)
+Ball::Ball(float radius, GLuint vertposition_loc, GLuint vertcolor_loc)
 {
 
-	float x1 = 0, x2, y1, y2, z1, z2;
-
-	x2 = length;
-
-	y1 = width / 2;
-	y2 = y1 - width;
-
-	z1 = depth / 2;
-	z2 = z1 - depth;
+	
 
 	this->vertposition_loc = vertposition_loc;
 	this->vertcolor_loc = vertcolor_loc;
 
-	GLfloat vbuffer_data[] =
-	{
-		x1, y1, z1, //0
-		x1, y2, z1, //1
-		x1, y1, z2, //2
-		x1, y2, z2, //3
-		x2, y1, z1, //4
-		x2, y2, z1, //5
-		x2, y1, z2, //6
-		x2, y2, z2 //7
-	};
+	
 
-	
-	this->Create(vbuffer_data);
-	
+
+	//this->Create(vbuffer_data);
+
 }
 
-VertexArrayObject::~VertexArrayObject()
+Ball::~Ball()
 {
 
 }
 
-void VertexArrayObject::Create(GLfloat vertex_buffer_data[24])
+void Ball::Create(GLfloat vertex_buffer_data[24])
 {
 	/*** VERTEX ARRAY OBJECT SETUP***/
 	// Create/Generate the Vertex Array Object

@@ -21,7 +21,13 @@
     <ClCompile Include="LoadShaders.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="VertexArrayObject.cpp">
+    <ClCompile Include="Box.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ball.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -44,12 +50,21 @@
     <ClInclude Include="LoadShaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VertexArrayObject.h">
+    <ClInclude Include="Box.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ball.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="geometryfileexample.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="SphereMesh.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

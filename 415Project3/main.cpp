@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <list>
 #include <sstream>
 #include <fstream>
+#include <stack>
 
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -15,7 +15,7 @@
 #include <gmtl\Matrix.h>
 
 #include "LoadShaders.h"
-#include "VertexArrayObject.h"
+#include "SceneObject.h"
 
 #pragma comment (lib, "glew32.lib")
 #pragma warning (disable : 4996) // Windows ; consider instead replacing fopen with fopen_s
@@ -37,7 +37,7 @@ enum ObjectType
 
 struct SceneNode
 {	
-	VertexArrayObject vao;
+	SceneObject object;
 	ObjectType type;
 	SceneNode* parent;
 	std::vector<SceneNode *> children;
@@ -67,7 +67,7 @@ struct Keyframe
 #define SCREEN_WIDTH 1024
 #define SCREEN_HEIGHT 1024
 #define NUM_OBJECTS 18
-#define BOX_INDECIES 20
+#define SceneObject_INDECIES 20
 
 
 // Parameter location for passing a matrix to vertex shader
@@ -83,11 +83,16 @@ mouseDeltaX, mouseDeltaY;
 
 float azimuth, elevation;
 
-gmtl::Matrix44f view;
+gmtl::Matrix44f view, modelView;
+stack<gmtl::Matrix44f> modelViews;
 
-std::vector<SceneNode> sceneGraph;
+std::vector<SceneNode*> sceneGraph;
 
 float hand[16][3], ballRadius, floorY, attachments[4], thumbLoc[3];
+
+std::vector<GLfloat> ball_vertex_data;
+std::vector<GLushort> ball_index_data;
+
 
 
 #pragma endregion
@@ -161,6 +166,48 @@ void readGeometry()
 	}
 }
 
+void importBallData()
+{
+	ifstream fp;
+	int i = 0, j = 0, numVerticies, numIndicies, numPolygons;
+
+	fp.open("SphereMesh.txt", ios_base::in);
+
+	if (fp)
+	{
+
+		for (std::string line; std::getline(fp, line); ++i)
+		{
+			std::istringstream in(line);
+
+			if (i == 0)
+			{
+				in >> numVerticies;
+				ball_vertex_data.resize(numVerticies*3);
+			}
+			else if (i > 0 && i <= numVerticies)
+			{
+				in >> ball_vertex_data[j] >> ball_vertex_data[j+1] >> ball_vertex_data[j+2];
+				j += 3;
+			}
+			else if (i == (numVerticies + 1))
+			{
+				in >> numPolygons;
+				ball_index_data.resize(numPolygons*3);
+				j = 0;
+			}
+			else if (i > (numVerticies + 1))
+			{
+				in >> numIndicies >> ball_index_data[j] >> ball_index_data[j + 1] >> ball_index_data[j + 2];
+				j+=3;
+			}
+		}
+
+
+		fp.close();
+	}
+}
+
 void buildFinger(int finger, SceneNode* newNode)
 {
 	SceneNode* metacarpal;
@@ -172,17 +219,17 @@ void buildFinger(int finger, SceneNode* newNode)
 
 	if (finger == 0)
 	{
-		metacarpal->parent = &sceneGraph[0];
+		metacarpal->parent = sceneGraph[0];
 		metacarpal->type = METACARPAL;
-		metacarpal->vao = VertexArrayObject(hand[finger + 1][0], hand[finger + 1][1], hand[finger + 1][2], vertposition_loc, vertcolor_loc);
+		metacarpal->object = SceneObject(hand[finger + 1][0], hand[finger + 1][1], hand[finger + 1][2], vertposition_loc, vertcolor_loc);
 
 		proximal->type = PROXIMAL;
 		proximal->parent = metacarpal;
-		proximal->vao = VertexArrayObject(hand[finger + 2][0], hand[finger + 2][1], hand[finger + 2][2], vertposition_loc, vertcolor_loc);
+		proximal->object = SceneObject(hand[finger + 2][0], hand[finger + 2][1], hand[finger + 2][2], vertposition_loc, vertcolor_loc);
 
 		distal->type = DISTAL;
 		distal->parent = proximal;
-		distal->vao = VertexArrayObject(hand[finger + 3][0], hand[finger + 3][1], hand[finger + 3][2], vertposition_loc, vertcolor_loc);
+		distal->object = SceneObject(hand[finger + 3][0], hand[finger + 3][1], hand[finger + 3][2], vertposition_loc, vertcolor_loc);
 		distal->children.clear();
 
 		proximal->children[0] = distal;
@@ -193,16 +240,16 @@ void buildFinger(int finger, SceneNode* newNode)
 	else
 	{
 		proximal->type = PROXIMAL;
-		proximal->parent = &sceneGraph[0];
-		proximal->vao = VertexArrayObject(hand[finger + 1][0], hand[finger + 1][1], hand[finger + 1][2], vertposition_loc, vertcolor_loc);
+		proximal->parent = sceneGraph[0];
+		proximal->object = SceneObject(hand[finger + 1][0], hand[finger + 1][1], hand[finger + 1][2], vertposition_loc, vertcolor_loc);
 
 		middle->type = MIDDLE;
 		middle->parent = metacarpal;
-		middle->vao = VertexArrayObject(hand[finger + 2][0], hand[finger + 2][1], hand[finger + 2][2], vertposition_loc, vertcolor_loc);
+		middle->object = SceneObject(hand[finger + 2][0], hand[finger + 2][1], hand[finger + 2][2], vertposition_loc, vertcolor_loc);
 
 		distal->type = DISTAL;
 		distal->parent = proximal;
-		distal->vao = VertexArrayObject(hand[finger + 3][0], hand[finger + 3][1], hand[finger + 3][2], vertposition_loc, vertcolor_loc);
+		distal->object = SceneObject(hand[finger + 3][0], hand[finger + 3][1], hand[finger + 3][2], vertposition_loc, vertcolor_loc);
 		distal->children.clear();
 
 		middle->children[0] = distal;
@@ -217,30 +264,48 @@ void buildFinger(int finger, SceneNode* newNode)
 void buildGraph()
 {
 	
-	SceneNode node;
+	SceneNode* node;
 
 	//Hand
-	node.type = PALM;
-	node.parent = NULL;
-	node.vao = VertexArrayObject(hand[0][0], hand[0][1], hand[0][2], vertposition_loc, vertcolor_loc);
+	node->type = PALM;
+	node->parent = NULL;
+	node->object = SceneObject(hand[0][0], hand[0][1], hand[0][2], vertposition_loc, vertcolor_loc);
 	
 	for (int i = 0; i < 5; ++i)
 	{
-		buildFinger(i, node.children[0]);		
+		buildFinger(i, node->children[0]);
 	}
 	
 	sceneGraph[0] = node;
+
 	//Ball
-	
+	importBallData();
+	node->type = BALL;
+	node->parent = NULL;
+	node->object = SceneObject(ballRadius, ball_vertex_data, ball_index_data, vertposition_loc, vertcolor_loc);
+	node->children.clear();
+	sceneGraph[1] = node;
+
 	//Floor
-	
+	node->type = FLOOR;
+	node->parent = NULL;
+	node->object = SceneObject(ballRadius * 3, 3.0f, ballRadius, vertposition_loc, vertcolor_loc);
+	node->children.clear();
+
+	sceneGraph[2] = node;
 }
 
 void renderGraph(std::vector<SceneNode*> graph)
 {
 	if(!graph.empty())
 	{
-		
+		for (int i = 0; i < graph.size(); ++i)
+		{
+			if (graph[i]->parent != NULL)
+			{
+
+			}
+		}
 	}
 	
 	return;
@@ -305,7 +370,7 @@ void display()
 	//	// Draw the transformed cuboid
 	//	glEnable(GL_PRIMITIVE_RESTART);
 	//	glPrimitiveRestartIndex(0xFFFF);
-	//	glDrawElements(GL_TRIANGLE_STRIP, BOX_INDECIES, GL_UNSIGNED_SHORT, NULL);
+	//	glDrawElements(GL_TRIANGLE_STRIP, SceneObject_INDECIES, GL_UNSIGNED_SHORT, NULL);
 	//}
 
 	////Ask GL to execute the commands from the buffer
@@ -355,7 +420,7 @@ void init()
 int main(int argc, char** argv)
 {
 
-	readGeometry();
+	
 	system("PAUSE");
 	return 0;
 

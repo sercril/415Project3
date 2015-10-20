@@ -1,5 +1,5 @@
-#ifndef __VERTEX_ARRAY_OBJECT_H__
-#define __VERTEX_ARRAY_OBJECT_H__
+#ifndef __BALL_H__
+#define __BALL_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,14 +13,14 @@
 
 using namespace std;
 
-class VertexArrayObject
+class Ball
 {
 
 public:
 
-	VertexArrayObject();
-	VertexArrayObject(float length, float width, float depth, GLuint vertposition_loc, GLuint vertcolor_loc);
-	~VertexArrayObject();
+	Ball();
+	Ball(float radius, GLuint vertposition_loc, GLuint vertcolor_loc);
+	~Ball();
 
 private:
 
