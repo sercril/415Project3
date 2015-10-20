@@ -23,14 +23,17 @@ public:
 	SceneObject(float radius, std::vector<GLfloat> vertex_data, std::vector<GLushort> index_data, GLuint vertposition_loc, GLuint vertcolor_loc);
 	~SceneObject();
 
+	gmtl::Matrix44f matrix;
+	float length, width, depth, radius;
+	GLuint vertex_array;
+
 private:
 
 	void Create(GLfloat* vertex_buffer_data, GLushort* index_buffer_data);
 
-	gmtl::Matrix44f matrix;
+	
 
-	GLuint vertex_array,
-		vertex_buffer, color_buffer, index_buffer,
+	GLuint vertex_buffer, color_buffer, index_buffer,
 		vertposition_loc, vertcolor_loc;
 };
 
