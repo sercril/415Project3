@@ -29,9 +29,8 @@ public:
 
 private:
 
-	void Create(GLfloat* vertex_buffer_data, GLushort* index_buffer_data);
-
-	
+	void CreateBox(GLfloat vertex_buffer_data[], GLushort index_buffer_data[20]);
+	void CreateSphere(GLfloat* vertex_buffer_data, GLushort* index_buffer_data);
 
 	GLuint vertex_buffer, color_buffer, index_buffer,
 		vertposition_loc, vertcolor_loc;

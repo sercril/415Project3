@@ -117,11 +117,11 @@ void cameraRotate()
 
 	azimuthRotation.setState(gmtl::Matrix44f::ORTHOGONAL);
 
-	viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(-4.0f,-4.0f, -4.0f));
+	/*viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(-2.0f,-2.0f, -2.0f));
 
-	viewScale.setState(gmtl::Matrix44f::AFFINE);
+	viewScale.setState(gmtl::Matrix44f::AFFINE);*/
 
-	view = azimuthRotation * elevationRotation *viewScale;
+	view = azimuthRotation * elevationRotation;// *viewScale;
 
 	view.setState(gmtl::Matrix44f::ORTHOGONAL);
 
@@ -213,12 +213,13 @@ void importBallData()
 	}
 }
 
-void buildFinger(int finger, SceneNode* newNode)
+SceneNode * buildFinger(int finger)
 {
 	SceneNode* metacarpal = new SceneNode();
 	SceneNode* proximal = new SceneNode();
 	SceneNode* middle = new SceneNode();
 	SceneNode* distal = new SceneNode();
+	SceneNode* returnNode = new SceneNode();
 	int base;
 	gmtl::Matrix44f initialTranslation;
 
@@ -252,7 +253,7 @@ void buildFinger(int finger, SceneNode* newNode)
 		proximal->children.push_back(distal);
 		metacarpal->children.push_back(proximal);
 		
-		newNode = metacarpal;
+		returnNode = metacarpal;
 
 	}
 	else
@@ -285,13 +286,13 @@ void buildFinger(int finger, SceneNode* newNode)
 		distal->object.matrix = distal->parent->object.matrix * initialTranslation;
 
 		middle->children.push_back(distal);
-		proximal->children.push_back(proximal);
+		proximal->children.push_back(middle);
 
-		newNode = proximal;
+		returnNode = proximal;
 
 	}
 
-	return;
+	return returnNode;
 }
 
 void buildGraph()
@@ -300,7 +301,6 @@ void buildGraph()
 	SceneNode* palm = new SceneNode();
 	SceneNode* ball = new SceneNode();
 	SceneNode* floor = new SceneNode();
-	SceneNode* node = new SceneNode();
 	gmtl::Matrix44f initialTranslation;
 
 	readGeometry();
@@ -314,9 +314,8 @@ void buildGraph()
 	sceneGraph.push_back(palm);
 	
 	for (int i = 0; i < 5; ++i)
-	{
-		buildFinger(i, node);
-		palm->children[i] = node;
+	{		
+		palm->children[i] = buildFinger(i);
 	}
 	
 	
@@ -347,7 +346,7 @@ void renderGraph(std::vector<SceneNode*> graph)
 
 	if(!graph.empty())
 	{
-		for (int i = 0; i < graph.size(); ++i)
+		for (int i = 0; i < 1; ++i)
 		{
 			switch (graph[i]->type)
 			{
@@ -378,24 +377,24 @@ void renderGraph(std::vector<SceneNode*> graph)
 			}
 
 			//Render
-			renderTransform = view * modelView;
+			renderTransform = modelView;
 			glBindVertexArray(graph[i]->object.vertex_array);
 			// Send a different transformation matrix to the shader
 			glUniformMatrix4fv(Matrix_loc, 1, GL_FALSE, &renderTransform[0][0]);
 
-			//// Draw the transformed cuboid
-			//glEnable(GL_PRIMITIVE_RESTART);
-			//glPrimitiveRestartIndex(0xFFFF);
-			//glDrawElements(GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
+			// Draw the transformed cuboid
+			glEnable(GL_PRIMITIVE_RESTART);
+			glPrimitiveRestartIndex(0xFFFF);
+			glDrawElements(GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
 
 
 			
-			if (!graph[i]->children.empty())
+			/*if (!graph[i]->children.empty())
 			{
 				renderGraph(graph[i]->children);
 				gmtl::invert(inverseTransform, graph[i]->object.matrix * thisTransform);
 				modelView = modelView * inverseTransform;
-			}
+			}*/
 			
 		}
 	}

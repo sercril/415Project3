@@ -15,6 +15,7 @@
 using namespace std;
 
 #pragma region Color Buffer
+/*
 static const GLfloat color_buffer_data[] =
 {
 	0.6f, 0.7f, 0.9f,
@@ -1371,8 +1372,19 @@ static const GLfloat color_buffer_data[] =
 	0.5f, 0.1f, 0.7f,
 	0.2f, 0.8f, 1.0f
 };
-
+*/
 #pragma endregion
+
+static const GLfloat color_buffer_data[] = {
+	1.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f,
+	1.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f,
+	1.0f, 0.0f, 1.0f,
+	0.0f, 1.0f, 0.0f,
+	1.0f, 0.0f, 0.0f,
+	0.0f, 1.0f, 0.0f
+};
 
 SceneObject::SceneObject()
 {
@@ -1423,7 +1435,7 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 	};
 
 
-	this->Create(vbuffer_data, index_buffer_data);
+	this->CreateBox(vbuffer_data, index_buffer_data);
 
 }
 
@@ -1435,7 +1447,7 @@ SceneObject::SceneObject(float radius, std::vector<GLfloat> vertex_data, std::ve
 
 	gmtl::identity(this->matrix);
 
-	this->Create(&vertex_data[0], &index_data[0]);
+	this->CreateSphere(&vertex_data[0], &index_data[0]);
 }
 
 
@@ -1444,7 +1456,45 @@ SceneObject::~SceneObject()
 
 }
 
-void SceneObject::Create(GLfloat* vertex_buffer_data, GLushort* index_buffer_data)
+void SceneObject::CreateBox(GLfloat vertex_buffer_data[], GLushort index_buffer_data[20])
+{
+	/*** VERTEX ARRAY OBJECT SETUP***/
+	// Create/Generate the Vertex Array Object
+	glGenVertexArrays(1, &this->vertex_array);
+	// Bind the Vertex Array Object
+	glBindVertexArray(this->vertex_array);
+
+	// Create/Generate the Vertex Buffer Object for the vertices.
+	glGenBuffers(1, &this->vertex_buffer);
+	// Bind the Vertex Buffer Object.
+	glBindBuffer(GL_ARRAY_BUFFER, this->vertex_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_buffer_data), vertex_buffer_data, GL_STATIC_DRAW);
+	// Specify data location and organization
+	glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
+		3, // Size
+		GL_FLOAT, // Type
+		GL_FALSE, // Is normalized
+		0, ((void*)0));
+	// Enable the use of this array
+	glEnableVertexAttribArray(vertposition_loc);
+
+	// Similarly, set up the color buffer.
+	glGenBuffers(1, &this->color_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, this->color_buffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(color_buffer_data), color_buffer_data, GL_STATIC_DRAW);
+	glVertexAttribPointer(vertcolor_loc, 3, GL_FLOAT, GL_FALSE, 0, ((void*)0));
+	glEnableVertexAttribArray(vertcolor_loc);
+
+	// Set up the element (index) array buffer and copy in data
+	glGenBuffers(1, &this->index_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->index_buffer);
+	// Transfer data
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+		sizeof(index_buffer_data),
+		index_buffer_data, GL_STATIC_DRAW);
+}
+
+void SceneObject::CreateSphere(GLfloat* vertex_buffer_data, GLushort* index_buffer_data)
 {
 	/*** VERTEX ARRAY OBJECT SETUP***/
 	// Create/Generate the Vertex Array Object
