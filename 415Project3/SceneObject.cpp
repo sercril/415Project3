@@ -16,7 +16,7 @@
 using namespace std;
 
 #pragma region Color Buffer
-/*
+
 static const GLfloat color_buffer_data[] =
 {
 	0.6f, 0.7f, 0.9f,
@@ -1373,19 +1373,18 @@ static const GLfloat color_buffer_data[] =
 	0.5f, 0.1f, 0.7f,
 	0.2f, 0.8f, 1.0f
 };
-*/
 #pragma endregion
 
-static const GLfloat color_buffer_data[] = {
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f,
-	1.0f, 0.0f, 0.0f,
-	0.0f, 1.0f, 0.0f
-};
+//static const GLfloat color_buffer_data[] = {
+//	1.0f, 0.0f, 0.0f,
+//	0.0f, 1.0f, 0.0f,
+//	1.0f, 0.0f, 0.0f,
+//	0.0f, 1.0f, 0.0f,
+//	1.0f, 0.0f, 1.0f,
+//	0.0f, 1.0f, 0.0f,
+//	1.0f, 0.0f, 0.0f,
+//	0.0f, 1.0f, 0.0f
+//};
 
 SceneObject::SceneObject()
 {
@@ -1396,6 +1395,7 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 {
 
 	float x1 = 0, x2, y1, y2, z1, z2;
+
 
 	this->length = length;
 	this->width = width;
@@ -1410,8 +1410,6 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 	z2 = z1 - depth;
 
 	gmtl::identity(this->matrix);
-
-	
 
 	GLfloat vbuffer_data[] =
 	{
@@ -1474,9 +1472,16 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 
 SceneObject::SceneObject(float radius, std::vector<GLfloat> vertex_data, std::vector<GLushort> index_data, GLuint vertposition_loc, GLuint vertcolor_loc)
 {
+	gmtl::Matrix44f ballScale;
+
 	this->radius = radius;
 
+	ballScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(his->radius, this->radius, this->radius));
+	ballScale.setState(gmtl::Matrix44f::AFFINE);
+
 	gmtl::identity(this->matrix);
+
+	this->matrix = ballScale * this->matrix;
 
 	/*** VERTEX ARRAY OBJECT SETUP***/
 	// Create/Generate the Vertex Array Object
@@ -1488,7 +1493,7 @@ SceneObject::SceneObject(float radius, std::vector<GLfloat> vertex_data, std::ve
 	glGenBuffers(1, &this->vertex_buffer);
 	// Bind the Vertex Buffer Object.
 	glBindBuffer(GL_ARRAY_BUFFER, this->vertex_buffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(&vertex_data[0]), &vertex_data[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(&vertex_data[0])*vertex_data.size(), &vertex_data[0], GL_STATIC_DRAW);
 	// Specify data location and organization
 	glVertexAttribPointer(vertposition_loc, // This number must match the layout in the shader
 		3, // Size
@@ -1510,7 +1515,7 @@ SceneObject::SceneObject(float radius, std::vector<GLfloat> vertex_data, std::ve
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->index_buffer);
 	// Transfer data
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-		sizeof(&index_data[0]),
+		sizeof(&index_data[0])*index_data.size(),
 		&index_data[0], GL_STATIC_DRAW);
 }
 

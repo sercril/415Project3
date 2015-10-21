@@ -84,8 +84,8 @@ mouseDeltaX, mouseDeltaY;
 
 float azimuth, elevation;
 
-gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera;
-
+gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera, palmRotM;
+gmtl::Quatf palmRotQ;
 
 std::vector<SceneNode*> sceneGraph;
 
@@ -96,8 +96,12 @@ std::vector<GLushort> ball_index_data;
 
 std::vector<gmtl::Matrix44f> fingerTransforms[15];
 
-#pragma endregion
+FILE *animFP;
 
+struct Keyframe c;
+
+
+#pragma endregion
 
 #pragma region Helper Functions
 
@@ -380,6 +384,7 @@ void renderGraph(std::vector<SceneNode*> graph)
 				case BALL:
 					graph[i]->object.matrix = ballTransform * graph[i]->object.matrix;
 					modelView = modelView * graph[i]->object.matrix;
+					cout << view * modelView << endl;
 					break;
 				case FLOOR:
 					graph[i]->object.matrix = floorTransform * graph[i]->object.matrix;
@@ -389,6 +394,7 @@ void renderGraph(std::vector<SceneNode*> graph)
 
 			//Render
 			renderTransform = view * modelView;
+			
 			glBindVertexArray(graph[i]->object.vertex_array);
 			// Send a different transformation matrix to the shader
 			glUniformMatrix4fv(Matrix_loc, 1, GL_FALSE, &renderTransform[0][0]);
@@ -403,8 +409,7 @@ void renderGraph(std::vector<SceneNode*> graph)
 			
 			if (!graph[i]->children.empty())
 			{
-				renderGraph(graph[i]->children);
-				
+				renderGraph(graph[i]->children);				
 			}
 
 			
@@ -477,6 +482,160 @@ void display()
 	}
 }
 
+void idle()
+{
+
+	gmtl::Matrix44f flexion, abduction, thumbRoll, thumbX;
+
+	if (animFP = fopen("animdata.bin", "rb"))
+	{
+		while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
+		{
+			printf("At time %ld ms, index flexion was %.2f rad, ball was at (%.2f,%.2f,%.2f)\n",
+				c.time, c.joint[4], c.ball_p[0], c.ball_p[1], c.ball_p[2]);
+
+
+			#pragma region "Palm"
+
+			palmTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.ball_p[0], c.ball_p[1], c.ball_p[2]));
+			palmTransform.setState(gmtl::Matrix44f::TRANS);
+
+			palmRotQ = gmtl::Quatf(c.ball_q[0], c.ball_q[1], c.ball_q[2], c.ball_q[3]);
+			palmRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
+			palmRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
+			
+			palmTransform = palmRotM * palmTransform;
+
+			#pragma endregion
+
+			#pragma region "Thumb"
+
+			thumbRoll = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(c.joint[0], 0.0f, 0.0f));
+			thumbRoll.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[3]));
+			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			thumbX = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(gmtl::Math::deg2Rad(-45.0f), 0.0f, 0.0f));
+			thumbX.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[0].push_back(thumbRoll * abduction * thumbX);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[1], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[1].push_back(flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[2], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+			
+			fingerTransforms[2].push_back(flexion);
+
+			#pragma endregion
+
+			#pragma region "Index"
+
+			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[6]));
+			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[4], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[3].push_back(abduction * flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[5], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[4].push_back(flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[5])/3.0f), 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[5].push_back(flexion);
+
+			#pragma endregion
+
+			#pragma region "Middle"
+
+			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[9]));
+			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[7], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[6].push_back(abduction * flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[8], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[7].push_back(flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[8]) / 3.0f), 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[8].push_back(flexion);
+
+			#pragma endregion
+
+			#pragma region "Ring"
+
+			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[12]));
+			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[10], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[9].push_back(abduction * flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[11], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[10].push_back(flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[11]) / 3.0f), 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[11].push_back(flexion);
+
+
+			#pragma endregion
+
+			#pragma region "Pinky"
+
+			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[15]));
+			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[13], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[12].push_back(abduction * flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[14], 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[13].push_back(flexion);
+
+			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[14]) / 3.0f), 0.0f));
+			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+			fingerTransforms[14].push_back(flexion);
+
+			#pragma endregion
+
+			#pragma region "Ball"
+
+
+
+			#pragma endregion
+
+
+		}
+		fclose(animFP);
+	}
+
+}
+
+
 
 void init()
 {
@@ -523,6 +682,8 @@ void init()
 	view = view * viewScale;
 
 	buildGraph();
+
+	
 }
 
 int main(int argc, char** argv)
@@ -557,6 +718,7 @@ int main(int argc, char** argv)
 	glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
 	glutMotionFunc(mouseMotion);
+	glutIdleFunc(idle);
 
 	//Transfer the control to glut processing loop.
 	glutMainLoop();
