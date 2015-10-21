@@ -69,7 +69,7 @@ struct Keyframe
 #define SCREEN_HEIGHT 1024
 //#define WORLD_OBJECTS 3
 #define NUM_OBJECTS 18
-#define INDECIES 3000
+#define INDECIES 10000
 
 // Parameter location for passing a matrix to vertex shader
 GLuint Matrix_loc;
@@ -101,6 +101,7 @@ FILE *animFP;
 
 struct Keyframe c;
 
+std::vector<Keyframe> keyframes;
 
 #pragma endregion
 
@@ -345,7 +346,7 @@ void buildGraph()
 	//Floor
 	floor->type = FLOOR;
 	floor->parent = NULL;
-	floor->object = SceneObject(ballRadius * 5, 3.0f, ballRadius*5, vertposition_loc, vertcolor_loc);
+	floor->object = SceneObject(ballRadius * 10, 3.0f, ballRadius*10, vertposition_loc, vertcolor_loc);
 	floor->children.clear();
 	initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(0.0f, floorY, 0.0f));
 	initialTranslation.setState(gmtl::Matrix44f::TRANS);
@@ -368,19 +369,20 @@ void renderGraph(std::vector<SceneNode*> graph, gmtl::Matrix44f mv)
 
 			switch (graph[i]->type)
 			{
+				case BALL:
+					newMV = newMV * ballScale;
+					break;
 				case PALM:
 				case METACARPAL:
 				case PROXIMAL:
 				case MIDDLE:
-					break;
-				case DISTAL:
-				case BALL:
+				case DISTAL:				
 				case FLOOR:
 					break;
 			}
 
 			//Render
-			renderTransform = view * newMV;
+			renderTransform = newMV;
 			
 			glBindVertexArray(graph[i]->object.vertex_array);
 			// Send a different transformation matrix to the shader
@@ -389,7 +391,7 @@ void renderGraph(std::vector<SceneNode*> graph, gmtl::Matrix44f mv)
 			// Draw the transformed cuboid
 			glEnable(GL_PRIMITIVE_RESTART);
 			glPrimitiveRestartIndex(0xFFFF);
-			glDrawElements(GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
+			glDrawElements((graph[i]->type == BALL) ? GL_TRIANGLES : GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
 
 			/*switch (graph[i]->type)
 			{
@@ -414,6 +416,18 @@ void renderGraph(std::vector<SceneNode*> graph, gmtl::Matrix44f mv)
 	}
 	
 	return;
+}
+
+void importAnimation()
+{
+	if (animFP = fopen("animdata_10fps.bin", "rb"))
+	{
+		while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
+		{
+			keyframes.push_back(c);
+		}
+		fclose(animFP);
+	}
 }
 
 #pragma endregion
@@ -465,7 +479,7 @@ void display()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	tempModelView = modelView;
-	renderGraph(sceneGraph, tempModelView);
+	renderGraph(sceneGraph, view);
 
 	//Ask GL to execute the commands from the buffer
 	glutSwapBuffers();	// *** if you are using GLUT_DOUBLE, use glutSwapBuffers() instead 
@@ -481,156 +495,217 @@ void display()
 void idle()
 {
 
-	gmtl::Matrix44f flexion, abduction, thumbRoll, thumbX;
+	gmtl::Matrix44f flexion, abduction, thumbRoll, thumbX, translation; 
+	static std::vector<Keyframe>::iterator i = keyframes.begin();
+	int time = glutGet(GLUT_ELAPSED_TIME);
+	struct Keyframe c;
 
-	if (animFP = fopen("animdata.bin", "rb"))
+	//cout << glutGet(GLUT_ELAPSED_TIME) << endl;
+
+	while (i != keyframes.end() && time > i->time)
 	{
-		/*while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
-		{*/
-			/*#pragma region "Palm"
-
-			palmTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.palm_p[0], c.palm_p[1], c.palm_p[2]));
-			palmTransform.setState(gmtl::Matrix44f::TRANS);
-
-			palmRotQ = gmtl::Quatf(c.palm_q[0], c.palm_q[1], c.palm_q[2], c.palm_q[3]);
-			palmRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
-			palmRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
-			
-			palmTransform = palmRotM * palmTransform;
-
-			#pragma endregion*/
-
-		/*	#pragma region "Thumb"
-
-			thumbRoll = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(c.joint[0], 0.0f, 0.0f));
-			thumbRoll.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[3]));
-			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			thumbX = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(gmtl::Math::deg2Rad(-45.0f), 0.0f, 0.0f));
-			thumbX.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[0].push_back(thumbRoll * abduction * thumbX);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[1], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[1].push_back(flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[2], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-			
-			fingerTransforms[2].push_back(flexion);
-
-			#pragma endregion
-
-			#pragma region "Index"
-
-			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[6]));
-			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[4], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[3].push_back(abduction * flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[5], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[4].push_back(flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[5])/3.0f), 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[5].push_back(flexion);
-
-			#pragma endregion
-
-			#pragma region "Middle"
-
-			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[9]));
-			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[7], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[6].push_back(abduction * flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[8], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[7].push_back(flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[8]) / 3.0f), 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[8].push_back(flexion);
-
-			#pragma endregion
-
-			#pragma region "Ring"
-
-			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[12]));
-			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[10], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[9].push_back(abduction * flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[11], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[10].push_back(flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[11]) / 3.0f), 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[11].push_back(flexion);
-
-
-			#pragma endregion
-
-			#pragma region "Pinky"
-
-			abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, 0.0f, c.joint[15]));
-			abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[13], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[12].push_back(abduction * flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, c.joint[14], 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[13].push_back(flexion);
-
-			flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(0.0f, ((2.0f*c.joint[14]) / 3.0f), 0.0f));
-			flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			fingerTransforms[14].push_back(flexion);
-
-			#pragma endregion
-
-			#pragma region "Ball"
-
-			ballTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.ball_p[0], c.ball_p[1], c.ball_p[2]));
-			ballTransform.setState(gmtl::Matrix44f::TRANS);
-
-			ballRotQ = gmtl::Quatf(c.ball_q[0], c.ball_q[1], c.ball_q[2], c.ball_q[3]);
-			ballRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
-			ballRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
-
-			ballTransform = ballRotM * ballTransform;
-
-			#pragma endregion*/
-
-			//glutPostRedisplay();
-		//}
-		fclose(animFP);
+		++i;
 	}
+
+	if (i == keyframes.end())
+	{
+		return;
+	}
+
+
+	c = *i;
+
+	
+
+	#pragma region "Palm"
+
+	palmTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.palm_p[0], c.palm_p[1], c.palm_p[2]));
+	palmTransform.setState(gmtl::Matrix44f::TRANS);
+
+	palmRotQ = gmtl::Quatf(c.palm_q[0], c.palm_q[1], c.palm_q[2], c.palm_q[3]);
+	palmRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
+	palmRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	sceneGraph[0]->object.matrix = palmTransform * palmRotM;
+
+	#pragma endregion
+	
+	#pragma region "Thumb"
+
+	thumbRoll = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(c.joint[0], 0.0f, 0.0f));
+	thumbRoll.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, 0.0f, c.joint[3]));
+	abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	thumbX = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(gmtl::Math::deg2Rad(-45.0f), 0.0f, 0.0f));
+	thumbX.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(thumbLoc[0], thumbLoc[1], thumbLoc[2]));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[0]->object.matrix = translation * thumbRoll * abduction * thumbX;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[1], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[0]->children[0]->object.matrix = translation * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[2], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[0]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[0]->children[0]->children[0]->object.matrix = translation * flexion;
+
+	#pragma endregion
+	
+	#pragma region "Index"
+
+	abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, 0.0f, c.joint[6]));
+	abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[4], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[1]->parent->object.length, attachments[0], 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+	
+	sceneGraph[0]->children[1]->object.matrix = translation * abduction * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[5], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[1]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[1]->children[0]->object.matrix = translation * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, ((2.0f*c.joint[5]) / 3.0f), 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[1]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[1]->children[0]->children[0]->object.matrix = translation * flexion;
+
+	#pragma endregion
+
+	#pragma region "Middle"
+
+	abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, 0.0f, c.joint[9]));
+	abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[7], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[2]->parent->object.length, attachments[1], 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[2]->object.matrix = translation * abduction * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[8], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[2]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[2]->children[0]->object.matrix = translation * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, ((2.0f*c.joint[8]) / 3.0f), 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[2]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[2]->children[0]->children[0]->object.matrix = translation * flexion;
+
+	#pragma endregion
+
+	#pragma region "Ring"
+
+	abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, 0.0f, c.joint[12]));
+	abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[10], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[3]->parent->object.length, attachments[2], 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[3]->object.matrix = translation * abduction * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[11], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[3]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[3]->children[0]->object.matrix = translation * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, ((2.0f*c.joint[11]) / 3.0f), 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[3]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[3]->children[0]->children[0]->object.matrix = translation * flexion;
+
+
+	#pragma endregion
+
+	#pragma region "Pinky"
+
+	abduction = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, 0.0f, c.joint[15]));
+	abduction.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[13], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[4]->parent->object.length, attachments[3], 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[4]->object.matrix = translation * abduction * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, c.joint[14], 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[4]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[4]->children[0]->object.matrix = translation * flexion;
+
+	flexion = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleXYZf(0.0f, ((2.0f*c.joint[14]) / 3.0f), 0.0f));
+	flexion.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	translation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(sceneGraph[0]->children[4]->children[0]->children[0]->parent->object.length, 0.0f, 0.0f));
+	translation.setState(gmtl::Matrix44f::TRANS);
+
+	sceneGraph[0]->children[4]->children[0]->children[0]->object.matrix = flexion;
+
+	#pragma endregion
+
+	#pragma region "Ball"
+
+	ballTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.ball_p[0], c.ball_p[1], c.ball_p[2]));
+	ballTransform.setState(gmtl::Matrix44f::TRANS);
+
+	ballRotQ = gmtl::Quatf(c.ball_q[0], c.ball_q[1], c.ball_q[2], c.ball_q[3]);
+	ballRotM = gmtl::make<gmtl::Matrix44f>(ballRotQ);
+	ballRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
+
+	sceneGraph[1]->object.matrix = ballTransform * ballRotM;
+
+	#pragma endregion
+		
+
+	glutPostRedisplay();
+	
+	
 
 }
 
@@ -638,8 +713,6 @@ void idle()
 
 void init()
 {
-
-
 
 	elevation = azimuth = 0;
 
@@ -683,7 +756,9 @@ void init()
 	buildGraph();
 	
 	ballScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(ballRadius, ballRadius, ballRadius));
-	ballScale.setState(gmtl::Matrix44f::AFFINE);	
+	ballScale.setState(gmtl::Matrix44f::AFFINE);
+
+	importAnimation();
 }
 
 int main(int argc, char** argv)
