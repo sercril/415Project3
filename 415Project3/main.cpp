@@ -84,8 +84,9 @@ mouseDeltaX, mouseDeltaY;
 
 float azimuth, elevation;
 
-gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera, palmRotM;
-gmtl::Quatf palmRotQ;
+gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera, ballScale,
+				palmRotM, ballRotM;
+gmtl::Quatf palmRotQ, ballRotQ;
 
 std::vector<SceneNode*> sceneGraph;
 
@@ -246,7 +247,7 @@ SceneNode * buildFinger(int finger)
 		metacarpal->id = finger;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(thumbLoc[0], thumbLoc[1], thumbLoc[2]));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		metacarpal->object.matrix = metacarpal->parent->object.matrix * initialTranslation;
+		metacarpal->object.matrix =  initialTranslation;
 
 		proximal->type = PROXIMAL;
 		proximal->parent = metacarpal;
@@ -254,7 +255,7 @@ SceneNode * buildFinger(int finger)
 		proximal->id = finger + 1;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(proximal->parent->object.length, 0.0f, 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		proximal->object.matrix = proximal->parent->object.matrix * initialTranslation;
+		proximal->object.matrix =  initialTranslation;
 
 		distal->type = DISTAL;
 		distal->parent = proximal;
@@ -263,7 +264,7 @@ SceneNode * buildFinger(int finger)
 		distal->id = finger + 2;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(distal->parent->object.length, 0.0f, 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		distal->object.matrix = distal->parent->object.matrix * initialTranslation;
+		distal->object.matrix = initialTranslation;
 
 		proximal->children.push_back(distal);
 		metacarpal->children.push_back(proximal);
@@ -274,31 +275,31 @@ SceneNode * buildFinger(int finger)
 	else
 	{
 		base = finger * 3;
-
+		
 		proximal->type = PROXIMAL;
 		proximal->parent = sceneGraph[0];
 		proximal->object = SceneObject(hand[base + 1][0], hand[base + 1][1], hand[base + 1][2], vertposition_loc, vertcolor_loc);
 		proximal->id = base;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(proximal->parent->object.length, attachments[finger-1], 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		proximal->object.matrix = proximal->parent->object.matrix * initialTranslation;
+		proximal->object.matrix = initialTranslation;
 
 		middle->type = MIDDLE;
-		middle->parent = metacarpal;
+		middle->parent = proximal;
 		middle->object = SceneObject(hand[base + 2][0], hand[base + 2][1], hand[base + 2][2], vertposition_loc, vertcolor_loc);
 		middle->id = base + 1;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(middle->parent->object.length, 0.0f, 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		middle->object.matrix = middle->parent->object.matrix * initialTranslation;
+		middle->object.matrix = initialTranslation;
 
 		distal->type = DISTAL;
-		distal->parent = proximal;
+		distal->parent = middle;
 		distal->object = SceneObject(hand[base + 3][0], hand[base + 3][1], hand[base + 3][2], vertposition_loc, vertcolor_loc);
 		distal->children.clear();
 		distal->id = base + 2;
 		initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(distal->parent->object.length, 0.0f, 0.0f));
 		initialTranslation.setState(gmtl::Matrix44f::TRANS);
-		distal->object.matrix =  distal->parent->object.matrix * initialTranslation;
+		distal->object.matrix =  initialTranslation;
 
 		middle->children.push_back(distal);
 		proximal->children.push_back(middle);
@@ -344,7 +345,7 @@ void buildGraph()
 	//Floor
 	floor->type = FLOOR;
 	floor->parent = NULL;
-	floor->object = SceneObject(ballRadius * 10, 3.0f, ballRadius*10, vertposition_loc, vertcolor_loc);
+	floor->object = SceneObject(ballRadius * 5, 3.0f, ballRadius*5, vertposition_loc, vertcolor_loc);
 	floor->children.clear();
 	initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(0.0f, floorY, 0.0f));
 	initialTranslation.setState(gmtl::Matrix44f::TRANS);
@@ -353,7 +354,7 @@ void buildGraph()
 	sceneGraph.push_back(floor);
 }
 
-void renderGraph(std::vector<SceneNode*> graph)
+void renderGraph(std::vector<SceneNode*> graph, gmtl::Matrix44f mv)
 {
 	gmtl::Matrix44f thisTransform, renderTransform, inverseTransform;
 
@@ -363,37 +364,23 @@ void renderGraph(std::vector<SceneNode*> graph)
 	{
 		for (int i = 0; i < graph.size(); ++i)
 		{
+			gmtl::Matrix44f newMV = mv * graph[i]->object.matrix;
+
 			switch (graph[i]->type)
 			{
 				case PALM:
-
-					graph[i]->object.matrix = palmTransform * graph[i]->object.matrix;
-					modelView = modelView * graph[i]->object.matrix;
-					break;
 				case METACARPAL:
 				case PROXIMAL:
 				case MIDDLE:
+					break;
 				case DISTAL:
-					for (int j = (fingerTransforms[graph[i]->id].size() - 1); j >=0; --j)
-					{
-						thisTransform = thisTransform * fingerTransforms[graph[i]->id][j];
-					}
-					graph[i]->object.matrix = graph[i]->object.matrix * thisTransform;
-					modelView = modelView * graph[i]->object.matrix;
-					break;
 				case BALL:
-					graph[i]->object.matrix = ballTransform * graph[i]->object.matrix;
-					modelView = modelView * graph[i]->object.matrix;
-					cout << view * modelView << endl;
-					break;
 				case FLOOR:
-					graph[i]->object.matrix = floorTransform * graph[i]->object.matrix;
-					modelView = modelView * graph[i]->object.matrix;
 					break;
 			}
 
 			//Render
-			renderTransform = view * modelView;
+			renderTransform = view * newMV;
 			
 			glBindVertexArray(graph[i]->object.vertex_array);
 			// Send a different transformation matrix to the shader
@@ -404,12 +391,21 @@ void renderGraph(std::vector<SceneNode*> graph)
 			glPrimitiveRestartIndex(0xFFFF);
 			glDrawElements(GL_TRIANGLE_STRIP, INDECIES, GL_UNSIGNED_SHORT, NULL);
 
-			gmtl::invert(inverseTransform, graph[i]->object.matrix * thisTransform);
-			modelView = modelView * inverseTransform;
+			/*switch (graph[i]->type)
+			{
+				case METACARPAL:
+				case PROXIMAL:
+				case MIDDLE:
+				case DISTAL:
+					gmtl::invertFull(inverseTransform, graph[i]->object.matrix * thisTransform);
+					modelView = modelView * inverseTransform;
+					break;
+			}*/
+
 			
 			if (!graph[i]->children.empty())
 			{
-				renderGraph(graph[i]->children);				
+				renderGraph(graph[i]->children, newMV);
 			}
 
 			
@@ -463,16 +459,16 @@ void keyboard(unsigned char key, int x, int y)
 
 void display()
 {
-
+	gmtl::Matrix44f tempModelView;
 
 	// Clear the color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-	renderGraph(sceneGraph);
+	tempModelView = modelView;
+	renderGraph(sceneGraph, tempModelView);
 
 	//Ask GL to execute the commands from the buffer
-	glFlush();	// *** if you are using GLUT_DOUBLE, use glutSwapBuffers() instead 
+	glutSwapBuffers();	// *** if you are using GLUT_DOUBLE, use glutSwapBuffers() instead 
 
 	//Check for any errors and print the error string.
 	//NOTE: The string returned by gluErrorString must not be altered.
@@ -489,26 +485,22 @@ void idle()
 
 	if (animFP = fopen("animdata.bin", "rb"))
 	{
-		while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
-		{
-			printf("At time %ld ms, index flexion was %.2f rad, ball was at (%.2f,%.2f,%.2f)\n",
-				c.time, c.joint[4], c.ball_p[0], c.ball_p[1], c.ball_p[2]);
+		/*while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
+		{*/
+			/*#pragma region "Palm"
 
-
-			#pragma region "Palm"
-
-			palmTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.ball_p[0], c.ball_p[1], c.ball_p[2]));
+			palmTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.palm_p[0], c.palm_p[1], c.palm_p[2]));
 			palmTransform.setState(gmtl::Matrix44f::TRANS);
 
-			palmRotQ = gmtl::Quatf(c.ball_q[0], c.ball_q[1], c.ball_q[2], c.ball_q[3]);
+			palmRotQ = gmtl::Quatf(c.palm_q[0], c.palm_q[1], c.palm_q[2], c.palm_q[3]);
 			palmRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
 			palmRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
 			
 			palmTransform = palmRotM * palmTransform;
 
-			#pragma endregion
+			#pragma endregion*/
 
-			#pragma region "Thumb"
+		/*	#pragma region "Thumb"
 
 			thumbRoll = gmtl::makeRot<gmtl::Matrix44f>(gmtl::EulerAngleZXYf(c.joint[0], 0.0f, 0.0f));
 			thumbRoll.setState(gmtl::Matrix44f::ORTHOGONAL);
@@ -624,12 +616,19 @@ void idle()
 
 			#pragma region "Ball"
 
+			ballTransform = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(c.ball_p[0], c.ball_p[1], c.ball_p[2]));
+			ballTransform.setState(gmtl::Matrix44f::TRANS);
 
+			ballRotQ = gmtl::Quatf(c.ball_q[0], c.ball_q[1], c.ball_q[2], c.ball_q[3]);
+			ballRotM = gmtl::make<gmtl::Matrix44f>(palmRotQ);
+			ballRotM.setState(gmtl::Matrix44f::ORTHOGONAL);
 
-			#pragma endregion
+			ballTransform = ballRotM * ballTransform;
 
+			#pragma endregion*/
 
-		}
+			//glutPostRedisplay();
+		//}
 		fclose(animFP);
 	}
 
@@ -682,8 +681,9 @@ void init()
 	view = view * viewScale;
 
 	buildGraph();
-
 	
+	ballScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(ballRadius, ballRadius, ballRadius));
+	ballScale.setState(gmtl::Matrix44f::AFFINE);	
 }
 
 int main(int argc, char** argv)
@@ -695,7 +695,7 @@ int main(int argc, char** argv)
 	glutInit(&argc, argv);
 
 	//Specify the display mode
-	glutInitDisplayMode(GLUT_RGBA);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
 
 	//Set the window size/dimensions
 	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);

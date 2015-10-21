@@ -1472,16 +1472,10 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 
 SceneObject::SceneObject(float radius, std::vector<GLfloat> vertex_data, std::vector<GLushort> index_data, GLuint vertposition_loc, GLuint vertcolor_loc)
 {
-	gmtl::Matrix44f ballScale;
 
-	this->radius = radius;
-
-	ballScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(his->radius, this->radius, this->radius));
-	ballScale.setState(gmtl::Matrix44f::AFFINE);
+	this->radius = radius;	
 
 	gmtl::identity(this->matrix);
-
-	this->matrix = ballScale * this->matrix;
 
 	/*** VERTEX ARRAY OBJECT SETUP***/
 	// Create/Generate the Vertex Array Object
