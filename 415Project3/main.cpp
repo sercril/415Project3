@@ -82,15 +82,14 @@ const GLubyte *errString;
 int mouseX, mouseY,
 mouseDeltaX, mouseDeltaY;
 
-float azimuth, elevation;
+float azimuth, elevation, startTime, hand[16][3], ballRadius, floorY, attachments[4], thumbLoc[3], viewScaleFactor;
 
 gmtl::Matrix44f view, modelView, ballTransform, floorTransform, palmTransform, viewScale, camera, ballScale,
-				palmRotM, ballRotM;
+				palmRotM, ballRotM,
+				elevationRotation, azimuthRotation;
 gmtl::Quatf palmRotQ, ballRotQ;
 
 std::vector<SceneNode*> sceneGraph;
-
-float hand[16][3], ballRadius, floorY, attachments[4], thumbLoc[3];
 
 std::vector<GLfloat> ball_vertex_data;
 std::vector<GLushort> ball_index_data;
@@ -103,6 +102,7 @@ struct Keyframe c;
 
 std::vector<Keyframe> keyframes;
 
+bool restart;
 #pragma endregion
 
 #pragma region Helper Functions
@@ -119,7 +119,6 @@ float degreesToRadians(float deg)
 
 void cameraRotate()
 {
-	gmtl::Matrix44f elevationRotation, azimuthRotation;
 	
 	elevationRotation.set(
 		1, 0, 0, 0,
@@ -318,7 +317,7 @@ void buildGraph()
 	SceneNode* palm = new SceneNode();
 	SceneNode* ball = new SceneNode();
 	SceneNode* floor = new SceneNode();
-	gmtl::Matrix44f initialTranslation;
+	gmtl::Matrix44f initialTranslation, moveLeft;
 
 	readGeometry();
 
@@ -346,10 +345,14 @@ void buildGraph()
 	//Floor
 	floor->type = FLOOR;
 	floor->parent = NULL;
-	floor->object = SceneObject(ballRadius * 10, 3.0f, ballRadius*10, vertposition_loc, vertcolor_loc);
+	floor->object = SceneObject(ballRadius * 10, 1.0f, ballRadius*10, vertposition_loc, vertcolor_loc);
 	floor->children.clear();
 	initialTranslation = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(0.0f, floorY, 0.0f));
 	initialTranslation.setState(gmtl::Matrix44f::TRANS);
+	//Make it look good
+	moveLeft = gmtl::makeTrans<gmtl::Matrix44f>(gmtl::Vec3f(((ballRadius* 10)*-1.0f)/2, 0.0f, 0.0f));
+	moveLeft.setState(gmtl::Matrix44f::TRANS);
+	initialTranslation = moveLeft * initialTranslation;
 	floor->object.matrix = floor->object.matrix * initialTranslation;
 
 	sceneGraph.push_back(floor);
@@ -420,7 +423,7 @@ void renderGraph(std::vector<SceneNode*> graph, gmtl::Matrix44f mv)
 
 void importAnimation()
 {
-	if (animFP = fopen("animdata_10fps.bin", "rb"))
+	if (animFP = fopen("animdata.bin", "rb"))
 	{
 		while (fread((void *)&c, sizeof(c), 1, animFP) == 1)
 		{
@@ -428,6 +431,56 @@ void importAnimation()
 		}
 		fclose(animFP);
 	}
+}
+
+Keyframe interpolate(float currentTime, Keyframe currentFrame, Keyframe nextFrame)
+{
+	Keyframe iFrame;
+	gmtl::Quatf normQuat;
+	float s;
+
+	s = (currentTime - currentFrame.time) / (nextFrame.time-currentFrame.time);
+
+	for (int i = 0; i < 3; ++i)
+	{
+		iFrame.palm_p[i] = (1.0f - s)*currentFrame.palm_p[i] + (s*nextFrame.palm_p[i]);
+	}
+	for (int i = 0; i < 4; ++i)
+	{
+		iFrame.palm_q[i] = (1.0f - s)*currentFrame.palm_q[i] + (s*nextFrame.palm_q[i]);
+	}
+
+	normQuat = gmtl::Quatf(iFrame.palm_q[0], iFrame.palm_q[1], iFrame.palm_q[2], iFrame.palm_q[3]);
+	gmtl::normalize(normQuat);
+
+	for (int i = 0; i < 4; ++i)
+	{
+		iFrame.palm_q[i] = normQuat[i];
+	}
+
+	for (int i = 0; i < 16; ++i)
+	{
+		iFrame.joint[i] = (1.0f - s)*currentFrame.joint[i] + (s*nextFrame.joint[i]);
+	}
+
+	for (int i = 0; i < 3; ++i)
+	{
+		iFrame.ball_p[i] = (1.0f - s)*currentFrame.ball_p[i] + (s*nextFrame.ball_p[i]);
+	}
+	for (int i = 0; i < 4; ++i)
+	{
+		iFrame.ball_q[i] = (1.0f - s)*currentFrame.ball_q[i] + (s*nextFrame.ball_q[i]);
+	}
+
+	normQuat = gmtl::Quatf(iFrame.ball_q[0], iFrame.ball_q[1], iFrame.ball_q[2], iFrame.ball_q[3]);
+	gmtl::normalize(normQuat);
+
+	for (int i = 0; i < 4; ++i)
+	{
+		iFrame.ball_q[i] = normQuat[i];
+	}
+
+	return iFrame;
 }
 
 #pragma endregion
@@ -466,7 +519,29 @@ void mouseMotion(int x, int y)
 
 void keyboard(unsigned char key, int x, int y)
 {
+	switch (key) 
+	{
 
+		case 'r':
+			restart = true;
+			break;
+
+		case 'z':
+			viewScaleFactor = viewScaleFactor + 0.01f;
+			viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(viewScaleFactor, viewScaleFactor, viewScaleFactor));
+			view = viewScale *elevationRotation * azimuthRotation;
+			break;
+
+		case 'Z':
+			viewScaleFactor = viewScaleFactor - 0.01f;
+			viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(viewScaleFactor, viewScaleFactor, viewScaleFactor));
+			view = viewScale *elevationRotation * azimuthRotation;
+			break;
+
+		case 'q': case 'Q': case 033 /* Escape key */:
+			exit(EXIT_SUCCESS);
+			break;
+	}
 }
 
 #pragma endregion
@@ -497,14 +572,16 @@ void idle()
 
 	gmtl::Matrix44f flexion, abduction, thumbRoll, thumbX, translation; 
 	static std::vector<Keyframe>::iterator i = keyframes.begin();
-	int time = glutGet(GLUT_ELAPSED_TIME);
-	struct Keyframe c;
+	float time = glutGet(GLUT_ELAPSED_TIME);
+	struct Keyframe c, thisFrame, nextFrame;
 
-	//cout << glutGet(GLUT_ELAPSED_TIME) << endl;
-
-	while (i != keyframes.end() && time > i->time)
+	if (restart)
 	{
-		++i;
+		startTime = time;
+		i = keyframes.begin();
+		sceneGraph.clear();
+		buildGraph();
+		restart = false;
 	}
 
 	if (i == keyframes.end())
@@ -512,8 +589,43 @@ void idle()
 		return;
 	}
 
+	while ((i+1) != (keyframes.end()-1) && (time-startTime) > i->time)
+	{
+		++i;
+		
+		
+	}
 
-	c = *i;
+	thisFrame = *i;
+	nextFrame = *(i + 1);
+
+	if ((i + 1) != (keyframes.end() - 1))
+	{
+		c = interpolate((time - startTime), thisFrame, nextFrame);
+	}
+	else
+	{
+		c = *(keyframes.end() - 1);
+	}
+	
+	
+	
+	
+	
+
+	/*if ((i + 1) != keyframes.end())
+	{
+		
+	}
+	else
+	{
+		thisFrame = *(keyframes.end() -1);
+		nextFrame = *(keyframes.end());
+	}*/
+		
+	
+
+	
 
 	
 
@@ -745,13 +857,13 @@ void init()
 	{
 		fingerTransforms[i].push_back(palmTransform);
 	}
-
-	viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(0.02f, 0.02f, 0.02f));
+	viewScaleFactor = 0.02f;
+	viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(viewScaleFactor, viewScaleFactor, viewScaleFactor));
 
 	viewScale.setState(gmtl::Matrix44f::AFFINE);
 	gmtl::invert(viewScale);
 
-	view = view * viewScale;
+	view = viewScale;
 
 	buildGraph();
 	
@@ -759,6 +871,9 @@ void init()
 	ballScale.setState(gmtl::Matrix44f::AFFINE);
 
 	importAnimation();
+
+	restart = false;
+	startTime = 0;
 }
 
 int main(int argc, char** argv)

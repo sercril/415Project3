@@ -25,9 +25,10 @@ public:
 	SceneObject(float radius, std::vector<GLfloat> vertex_data, std::vector<GLushort> index_data, GLuint vertposition_loc, GLuint vertcolor_loc);
 	~SceneObject();
 
-	gmtl::Matrix44f matrix;
+	gmtl::Matrix44f matrix, scale;
 	float length, width, depth, radius;
 	GLuint vertex_array;
+
 
 private:
 

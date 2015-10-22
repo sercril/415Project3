@@ -1375,17 +1375,6 @@ static const GLfloat color_buffer_data[] =
 };
 #pragma endregion
 
-//static const GLfloat color_buffer_data[] = {
-//	1.0f, 0.0f, 0.0f,
-//	0.0f, 1.0f, 0.0f,
-//	1.0f, 0.0f, 0.0f,
-//	0.0f, 1.0f, 0.0f,
-//	1.0f, 0.0f, 1.0f,
-//	0.0f, 1.0f, 0.0f,
-//	1.0f, 0.0f, 0.0f,
-//	0.0f, 1.0f, 0.0f
-//};
-
 SceneObject::SceneObject()
 {
 
@@ -1395,8 +1384,7 @@ SceneObject::SceneObject(float length, float width, float depth, GLuint vertposi
 {
 
 	float x1 = 0, x2, y1, y2, z1, z2;
-
-
+	
 	this->length = length;
 	this->width = width;
 	this->depth = depth;
