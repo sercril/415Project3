@@ -527,13 +527,13 @@ void keyboard(unsigned char key, int x, int y)
 			break;
 
 		case 'z':
-			viewScaleFactor = viewScaleFactor + 0.01f;
+			viewScaleFactor = viewScaleFactor + 0.005f;
 			viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(viewScaleFactor, viewScaleFactor, viewScaleFactor));
 			view = viewScale *elevationRotation * azimuthRotation;
 			break;
 
 		case 'Z':
-			viewScaleFactor = viewScaleFactor - 0.01f;
+			viewScaleFactor = viewScaleFactor - 0.005f;
 			viewScale = gmtl::makeScale<gmtl::Matrix44f>(gmtl::Vec3f(viewScaleFactor, viewScaleFactor, viewScaleFactor));
 			view = viewScale *elevationRotation * azimuthRotation;
 			break;

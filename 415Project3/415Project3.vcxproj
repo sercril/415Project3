@@ -67,10 +67,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Ball.cpp" />
     <ClCompile Include="LoadShaders.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Box.cpp" />
     <ClCompile Include="SceneObject.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -81,9 +79,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Ball.h" />
     <ClInclude Include="LoadShaders.h" />
-    <ClInclude Include="Box.h" />
     <ClInclude Include="SceneObject.h" />
   </ItemGroup>
   <ItemGroup>
